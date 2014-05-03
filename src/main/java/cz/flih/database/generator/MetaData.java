@@ -1,15 +1,16 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package cz.flih.database.generator;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import static java.text.MessageFormat.format;
 import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -21,23 +22,21 @@ class MetaData {
 
     private final DatabaseMetaData metaData;
     private Collection<TableName> tables;
+    private Map<TableName, Set<ForeignKey>> fks;
 
     MetaData(DatabaseMetaData metaData) {
         this.metaData = metaData;
     }
 
     private Collection<TableName> loadTables() {
-        ImmutableSet.Builder<TableName> builder = ImmutableSet.builder();
-        try {
-            try (ResultSet rs = metaData.getTables(null, null, null, new String[]{"TABLE"})) {
-                while (rs.next()) {
-                    builder.add(new TableName(rs.getString("TABLE_NAME")));
-                }
-            }
-        } catch (SQLException ex) {
-            throw new RuntimeException(ex);
-        }
-        return builder.build();
+        return findInfo(
+                (md) -> {
+                    return md.getTables(null, null, null, new String[]{"TABLE"});
+                },
+                (rs) -> {
+                    return new TableName(rs.getString("TABLE_NAME"));
+                });
+
     }
 
     public Collection<TableName> getTables() {
@@ -48,5 +47,64 @@ class MetaData {
         return ImmutableSet.copyOf(tables);
     }
 
+    public Map<TableName, Set<ForeignKey>> getAllFKs() {
+        if (fks == null) {
+            fks = loadAllFKs();
+        }
+        return ImmutableMap.copyOf(fks);
+    }
+
+    private Map<TableName, Set<ForeignKey>> loadAllFKs() {
+        ImmutableMap.Builder<TableName, Set<ForeignKey>> builder = ImmutableMap.builder();
+        for (TableName tableName : getTables()) {
+            builder.put(tableName, getFKs(tableName));
+        }
+        return builder.build();
+    }
+
+    private <T> Set<T> findInfo(MetaDataGetter getter, MDItemBuilder<T> rowParser) {
+        ImmutableSet.Builder<T> builder = ImmutableSet.builder();
+        try {
+            try (ResultSet rs = getter.get(metaData)) {
+                while (rs.next()) {
+                    builder.add(rowParser.build(rs));
+                }
+            }
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
+        }
+        return builder.build();
+    }
+
+    private Set<ForeignKey> getFKs(final TableName table) {
+        return findInfo(
+                (md) -> {
+                    return md.getImportedKeys(null, null, table.getTable());
+                },
+                (rs) -> {
+                    if (rs.getInt("KEY_SEQ") > 1) {
+                        throw new RuntimeException(format("Unsupported multiple column keys (in table {0})", table));
+                    }
+                    TableName fkTable = new TableName(rs.getString("FKTABLE_NAME"));
+                    TableName pkTable = new TableName(rs.getString("PKTABLE_NAME"));
+
+                    ColumnName fkColumn = new ColumnName(fkTable, rs.getString("FKCOLUMN_NAME"));
+                    ColumnName pkColumn = new ColumnName(pkTable, rs.getString("PKCOLUMN_NAME"));
+
+                    return new ForeignKey(fkColumn, pkColumn);
+                });
+    }
+
+    @FunctionalInterface
+    private interface MetaDataGetter {
+
+        ResultSet get(DatabaseMetaData metaData) throws SQLException;
+    }
+
+    @FunctionalInterface
+    private interface MDItemBuilder<T> {
+
+        T build(ResultSet rs) throws SQLException;
+    }
 
 }

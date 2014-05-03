@@ -5,6 +5,7 @@
  */
 package cz.flih.database.generator;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import cz.flih.database.generator.thirdparty.ScriptRunner;
 import java.io.BufferedReader;
@@ -19,54 +20,57 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
-import org.junit.After;
-import org.junit.Assert;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.junit.AfterClass;
 import static org.junit.Assert.assertEquals;
-import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
  *
  * @author Krab
  */
-public class MainTest {
+public class MainROTest {
 
     private static final String DB_LOCATION = "test/db";
     private static final String JDBC_URL = "jdbc:derby:" + DB_LOCATION;
-    private Connection conn;
+    private static Connection conn;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeClass
+    public static void setUp() throws Exception {
         deleteDir(DB_LOCATION);
         Class.forName("org.apache.derby.jdbc.EmbeddedDriver");
 
         conn = DriverManager.getConnection(JDBC_URL + ";create=true");
         ScriptRunner runner = new ScriptRunner(conn, true, true);
-        try (Reader fr = new FileReader("test/main.sql");
+        try (Reader fr = new FileReader("src/test/sql/main.sql");
                 Reader reader = new BufferedReader(fr)) {
             runner.runScript(reader);
         }
     }
 
-    @After
-    public void tearDown() throws SQLException {
+    @AfterClass
+    public static void tearDown() throws SQLException {
         if (conn != null) {
             conn.close();
         }
     }
 
     @Test
-    public void testTest() throws SQLException {
+    public void testStartingTables() throws Exception {
         MetaData metaData = new MetaData(conn.getMetaData());
+        Generator gen = new Generator(conn, metaData);
 
-        Collection<TableName> tables = metaData.getTables();
-        assertEquals(new TableName("SINGLE"), Iterables.getOnlyElement(tables));
+        Set<TableName> expected = ImmutableSet.of(new TableName("SINGLE"), new TableName("MAIN"));
+        Set<TableName> tables = gen.getStartingTables().collect(Collectors.toSet());
+
+        assertEquals(expected, tables);
     }
 
-    private void deleteDir(String dir) throws IOException {
+    private static void deleteDir(String dir) throws IOException {
         File f = new File(dir);
         if (!f.exists()) {
             return;

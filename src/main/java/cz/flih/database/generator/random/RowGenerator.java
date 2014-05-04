@@ -3,14 +3,13 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package cz.flih.database.generator.random;
 
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import cz.flih.database.generator.artifacts.Column;
-import cz.flih.database.generator.values.ColumnName;
+import cz.flih.database.generator.ref.ColumnName;
 import java.util.Map;
-import java.util.stream.Stream;
+import java.util.Set;
 
 /**
  *
@@ -18,8 +17,14 @@ import java.util.stream.Stream;
  */
 public class RowGenerator {
 
-    public Map<ColumnName, Object> generateRow(Stream<Column> columns) {
-        return ImmutableMap.of();
+    private final Set<Column> columns;
+
+    public RowGenerator(Set<Column> columns) {
+        this.columns = ImmutableSet.copyOf(columns);
+    }
+
+    public Map<ColumnName, Object> generateRow() {
+        throw new UnsupportedOperationException("Not supported");
     }
 
 }

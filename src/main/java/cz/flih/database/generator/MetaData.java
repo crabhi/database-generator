@@ -1,7 +1,7 @@
 package cz.flih.database.generator;
 
-import cz.flih.database.generator.values.ColumnName;
-import cz.flih.database.generator.values.TableName;
+import cz.flih.database.generator.ref.ColumnName;
+import cz.flih.database.generator.ref.TableName;
 import cz.flih.database.generator.artifacts.ForeignKey;
 import cz.flih.database.generator.artifacts.Column;
 import com.google.common.collect.ImmutableMap;
@@ -9,7 +9,9 @@ import com.google.common.collect.ImmutableSet;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+
 import static java.text.MessageFormat.format;
+
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
@@ -32,7 +34,6 @@ class MetaData {
                 (rs) -> {
                     return new TableName(rs.getString("TABLE_NAME"));
                 });
-
     }
 
     public Collection<TableName> getTables() {
@@ -106,8 +107,15 @@ class MetaData {
         }, fkBuilder);
     }
 
-    Set<Column> getColumns(TableName table) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    Set<Column> getColumns(final TableName table) {
+        return findInfo((md) -> {
+            return metaData.getColumns(null, null, table.getTable(), null);
+        }, (rs) -> {
+            TableName tableName = new TableName(rs.getString("TABLE_NAME"));
+            assert table.equals(tableName);
+            ColumnName colName = new ColumnName(tableName, rs.getString("COLUMN_NAME"));
+            return new Column(colName);
+        });
     }
 
     @FunctionalInterface

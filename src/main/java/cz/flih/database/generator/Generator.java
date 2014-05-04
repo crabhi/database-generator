@@ -7,17 +7,17 @@ package cz.flih.database.generator;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
-import cz.flih.database.generator.artifacts.Column;
 import cz.flih.database.generator.artifacts.ForeignKey;
 import cz.flih.database.generator.random.RowGenerator;
-import cz.flih.database.generator.values.ColumnName;
-import cz.flih.database.generator.values.TableName;
+import cz.flih.database.generator.ref.ColumnName;
+import cz.flih.database.generator.ref.TableName;
 import java.sql.Connection;
 import java.text.MessageFormat;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -30,14 +30,11 @@ public class Generator {
     private final Connection conn;
     private final MetaData md;
     private final DbStatistics stats;
-    private final RowGenerator rowgen;
 
     Generator(Connection conn, MetaData md, DbStatistics stats) {
         this.conn = conn;
         this.md = md;
         this.stats = stats;
-
-        this.rowgen = new RowGenerator();
     }
 
     public void start() {
@@ -54,11 +51,12 @@ public class Generator {
     }
 
     private void addData(final TableName table, final int rows, final Map<ColumnName, Object> fixedValues) {
-        for (int i = 0; i < rows; i++) {
-            Set<Column> cols = md.getColumns(table);
-            Map<ColumnName, Object> randomRow = rowgen.generateRow(cols.stream().filter((col) -> {
+        RowGenerator rowgen = new RowGenerator(md.getColumns(table).stream().filter((col) -> {
                 return !fixedValues.containsKey(col.getName());
-            }));
+            }).collect(Collectors.toSet()));
+
+        for (int i = 0; i < rows; i++) {
+            Map<ColumnName, Object> randomRow = rowgen.generateRow();
             ImmutableMap<ColumnName, Object> row = ImmutableMap.<ColumnName, Object>builder()
                     .putAll(randomRow)
                     .putAll(fixedValues).build();
@@ -88,6 +86,8 @@ public class Generator {
     @VisibleForTesting
     Stream<TableName> getStartingTables() {
         final Map<TableName, Set<ForeignKey>> fks = md.getAllFKs();
+
+        // TODO: assert no cycles
 
         return md.getTables().stream().filter((table) -> {
             return !fks.containsKey(table) || fks.get(table).isEmpty();

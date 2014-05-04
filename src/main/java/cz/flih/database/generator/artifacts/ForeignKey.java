@@ -5,8 +5,8 @@
  */
 package cz.flih.database.generator.artifacts;
 
-import cz.flih.database.generator.values.ColumnName;
-import cz.flih.database.generator.values.TableName;
+import cz.flih.database.generator.ref.ColumnName;
+import cz.flih.database.generator.ref.TableName;
 import java.util.Objects;
 
 /**

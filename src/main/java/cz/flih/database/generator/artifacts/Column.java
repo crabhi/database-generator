@@ -3,10 +3,9 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package cz.flih.database.generator.artifacts;
 
-import cz.flih.database.generator.values.ColumnName;
+import cz.flih.database.generator.ref.ColumnName;
 
 /**
  *
@@ -14,8 +13,14 @@ import cz.flih.database.generator.values.ColumnName;
  */
 public class Column {
 
+    private final ColumnName name;
+
+    public Column(ColumnName name) {
+        this.name = name;
+    }
+
     public ColumnName getName() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return name;
     }
 
 }

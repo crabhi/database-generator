@@ -5,7 +5,7 @@
  */
 package cz.flih.database.generator;
 
-import cz.flih.database.generator.values.TableName;
+import cz.flih.database.generator.ref.TableName;
 import au.com.bytecode.opencsv.CSVReader;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -46,10 +46,10 @@ public class DbStatistics {
     }
 
     private IntegerDistribution createQuasiGeometricDist(RandomGenerator rng) {
-        IntStream range = IntStream.range(0, 100);
+        int samples = 100;
         double p = 0.5;
-        int[] singletons = range.toArray();
-        double[] probabilities = range.mapToDouble((k) -> {
+        int[] singletons = IntStream.range(0, samples).toArray();
+        double[] probabilities = IntStream.range(0, samples).mapToDouble((k) -> {
             return Math.pow(1 - p, k) * p;
         }).toArray();
         return new EnumeratedIntegerDistribution(rng, singletons, probabilities);

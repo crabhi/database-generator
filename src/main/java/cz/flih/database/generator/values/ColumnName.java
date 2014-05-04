@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package cz.flih.database.generator;
+package cz.flih.database.generator.values;
 
 import java.util.Objects;
 
@@ -16,7 +16,7 @@ public final class ColumnName {
     private final String column;
     private final TableName table;
 
-    ColumnName(TableName table, String column) {
+    public ColumnName(TableName table, String column) {
         this.table = table;
         this.column = column;
     }

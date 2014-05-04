@@ -1,5 +1,9 @@
 package cz.flih.database.generator;
 
+import cz.flih.database.generator.values.ColumnName;
+import cz.flih.database.generator.values.TableName;
+import cz.flih.database.generator.artifacts.ForeignKey;
+import cz.flih.database.generator.artifacts.Column;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import java.sql.DatabaseMetaData;
@@ -9,8 +13,6 @@ import static java.text.MessageFormat.format;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 class MetaData {
 
@@ -102,6 +104,10 @@ class MetaData {
         return findInfo((md) -> {
             return md.getExportedKeys(null, null, table.getTable());
         }, fkBuilder);
+    }
+
+    Set<Column> getColumns(TableName table) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @FunctionalInterface

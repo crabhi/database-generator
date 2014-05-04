@@ -5,6 +5,9 @@
  */
 package cz.flih.database.generator;
 
+import cz.flih.database.generator.values.TableName;
+import cz.flih.database.generator.artifacts.ForeignKey;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import cz.flih.database.generator.thirdparty.ScriptRunner;
@@ -61,7 +64,7 @@ public class MainROTest {
     @Test
     public void testStartingTables() throws Exception {
         MetaData metaData = new MetaData(conn.getMetaData());
-        Generator gen = new Generator(conn, metaData);
+        Generator gen = new Generator(conn, metaData, new DbStatistics(ImmutableMap.of()));
 
         Set<TableName> expected = ImmutableSet.of(new TableName("SINGLE"), new TableName("MAIN"));
         Set<TableName> tables = gen.getStartingTables().collect(Collectors.toSet());

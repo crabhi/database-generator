@@ -3,7 +3,6 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package cz.flih.database.generator;
 
 /**
@@ -11,6 +10,7 @@ package cz.flih.database.generator;
  * @author Krab
  */
 class ForeignKey {
+
     private final ColumnName fkColumn;
     private final ColumnName pkColumn;
 
@@ -23,4 +23,7 @@ class ForeignKey {
         return pkColumn.getTable();
     }
 
+    public TableName getFkTable() {
+        return fkColumn.getTable();
+    }
 }

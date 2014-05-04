@@ -21,7 +21,6 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.Collection;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.AfterClass;
@@ -69,6 +68,17 @@ public class MainROTest {
 
         assertEquals(expected, tables);
     }
+
+    @Test
+    public void testOutgoingRels() throws Exception {
+        MetaData metaData = new MetaData(conn.getMetaData());
+        Set<ForeignKey> oneToManyRels = metaData.getOutgoingRelations(new TableName("MAIN"));
+
+        ForeignKey fk = Iterables.getOnlyElement(oneToManyRels);
+        assertEquals(new TableName("MAIN"), fk.getPkTable());
+        assertEquals(new TableName("DETAIL"), fk.getFkTable());
+    }
+
 
     private static void deleteDir(String dir) throws IOException {
         File f = new File(dir);

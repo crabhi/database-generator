@@ -12,12 +12,6 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- *
- * @author Krab
- *
- * // NOT THREAD SAFE
- */
 class MetaData {
 
     private final DatabaseMetaData metaData;
@@ -77,22 +71,37 @@ class MetaData {
     }
 
     private Set<ForeignKey> getFKs(final TableName table) {
-        return findInfo(
-                (md) -> {
-                    return md.getImportedKeys(null, null, table.getTable());
-                },
-                (rs) -> {
-                    if (rs.getInt("KEY_SEQ") > 1) {
-                        throw new RuntimeException(format("Unsupported multiple column keys (in table {0})", table));
-                    }
-                    TableName fkTable = new TableName(rs.getString("FKTABLE_NAME"));
-                    TableName pkTable = new TableName(rs.getString("PKTABLE_NAME"));
+        return findInfo((md) -> {
+            return md.getImportedKeys(null, null, table.getTable());
+        }, fkBuilder);
+    }
 
-                    ColumnName fkColumn = new ColumnName(fkTable, rs.getString("FKCOLUMN_NAME"));
-                    ColumnName pkColumn = new ColumnName(pkTable, rs.getString("PKCOLUMN_NAME"));
+    /**
+     * Builds FK from a {@link ResultSet}.
+     */
+    private static final MDItemBuilder<ForeignKey> fkBuilder = (rs) -> {
+        TableName fkTable = new TableName(rs.getString("FKTABLE_NAME"));
+        TableName pkTable = new TableName(rs.getString("PKTABLE_NAME"));
 
-                    return new ForeignKey(fkColumn, pkColumn);
-                });
+        if (rs.getInt("KEY_SEQ") > 1) {
+            throw new RuntimeException(
+                    format("Unsupported multiple column keys (in tables {0} -> {1})", fkTable, pkTable));
+        }
+
+        ColumnName fkColumn = new ColumnName(fkTable, rs.getString("FKCOLUMN_NAME"));
+        ColumnName pkColumn = new ColumnName(pkTable, rs.getString("PKCOLUMN_NAME"));
+
+        return new ForeignKey(fkColumn, pkColumn);
+    };
+
+    /**
+     * @param table table
+     * @return a set of keys dependent on this table
+     */
+    public Set<ForeignKey> getOutgoingRelations(final TableName table) {
+        return findInfo((md) -> {
+            return md.getExportedKeys(null, null, table.getTable());
+        }, fkBuilder);
     }
 
     @FunctionalInterface

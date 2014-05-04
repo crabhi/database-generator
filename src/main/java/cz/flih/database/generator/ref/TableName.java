@@ -6,6 +6,9 @@
 package cz.flih.database.generator.ref;
 
 import java.util.Objects;
+import org.jooq.Record;
+import org.jooq.Table;
+import org.jooq.impl.DSL;
 
 /**
  *
@@ -26,6 +29,9 @@ public final class TableName {
         return new TableName(name);
     }
 
+    public Table<Record> toJooq() {
+        return DSL.tableByName(table);
+    }
 
     @Override
     public String toString() {

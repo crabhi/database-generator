@@ -11,10 +11,10 @@ package cz.flih.database.generator;
 import com.google.common.collect.ImmutableMap;
 import cz.flih.database.generator.ref.TableName;
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Map;
+import org.jooq.SQLDialect;
+import org.jooq.impl.DSL;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -58,11 +58,7 @@ public class MainWriteTest {
     }
 
     private Integer getTableSize(TableName table) throws SQLException {
-        try (Statement stmt = conn.createStatement();
-                ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM " + q.quoted(table))) {
-            rs.next();
-            return rs.getInt(1);
-        }
+        return DSL.using(conn, SQLDialect.DERBY).selectCount().from(table.toJooq()).fetchOne(0, int.class);
     }
 
 }

@@ -6,6 +6,8 @@
 package cz.flih.database.generator.ref;
 
 import java.util.Objects;
+import org.jooq.Field;
+import org.jooq.impl.DSL;
 
 /**
  *
@@ -23,8 +25,13 @@ public final class ColumnName {
 
     @Override
     public String toString() {
-        return column;
+        return table + "." + column;
     }
+
+    public Field<?> toJooq() {
+        return DSL.fieldByName(table.getTable(), column);
+    }
+
 
     public String getColumn() {
         return column;

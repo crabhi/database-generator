@@ -7,23 +7,22 @@ package cz.flih.database.generator;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
+import cz.flih.database.generator.artifacts.Column;
 import cz.flih.database.generator.artifacts.ForeignKey;
 import cz.flih.database.generator.random.RowGenerator;
 import cz.flih.database.generator.ref.ColumnName;
 import cz.flih.database.generator.ref.TableName;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.text.MessageFormat;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-/**
- *
- * @author Krab
- */
 public class Generator {
 
     private static final Logger LOG = Logger.getLogger(Generator.class.getName());
@@ -51,9 +50,20 @@ public class Generator {
     }
 
     private void addData(final TableName table, final int rows, final Map<ColumnName, Object> fixedValues) {
-        RowGenerator rowgen = new RowGenerator(md.getColumns(table).stream().filter((col) -> {
-                return !fixedValues.containsKey(col.getName());
-            }).collect(Collectors.toSet()));
+        Set<Column> columns = md.getColumns(table);
+        Set<Column> randomColumns = columns.stream().filter((col) -> {
+            return !fixedValues.containsKey(col.getName());
+        }).collect(Collectors.toSet());
+        RowGenerator rowgen = new RowGenerator(randomColumns);
+        Inserter inserter;
+        try {
+            inserter = new Inserter(conn, table, columns);
+        } catch (SQLException ex) {
+            LOG.log(Level.SEVERE, "Can't create inserter for " + table, ex);
+            return;
+        }
+
+        int errCount = 0;
 
         for (int i = 0; i < rows; i++) {
             Map<ColumnName, Object> randomRow = rowgen.generateRow();
@@ -61,7 +71,21 @@ public class Generator {
                     .putAll(randomRow)
                     .putAll(fixedValues).build();
 
-            Map<ColumnName, Object> generated = insert(table, row);
+            Map<ColumnName, Object> generated;
+            try {
+                generated = inserter.insert(row);
+            } catch (SQLException ex) {
+                LOG.log(Level.WARNING,
+                        MessageFormat.format("Can't insert to {0}, row: {1}", table, row), ex);
+                if (errCount > MAX_INSERT_ERRORS) {
+                    LOG.log(Level.SEVERE, "Too many errors on one row for {0}, giving up.", table);
+                    return;
+                } else {
+                    continue;
+                }
+            }
+
+            errCount = 0;
 
             ImmutableMap<ColumnName, Object> insertedRow = ImmutableMap.<ColumnName, Object>builder()
                     .putAll(row)
@@ -79,6 +103,7 @@ public class Generator {
             }
         }
     }
+    private static final int MAX_INSERT_ERRORS = 30;
 
     /**
      * @return The tables to which lead no FK constraints and thus can be filled without any external limitations.
@@ -88,13 +113,9 @@ public class Generator {
         final Map<TableName, Set<ForeignKey>> fks = md.getAllFKs();
 
         // TODO: assert no cycles
-
         return md.getTables().stream().filter((table) -> {
             return !fks.containsKey(table) || fks.get(table).isEmpty();
         });
     }
 
-    private Map<ColumnName, Object> insert(TableName table, ImmutableMap<ColumnName, Object> row) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
 }

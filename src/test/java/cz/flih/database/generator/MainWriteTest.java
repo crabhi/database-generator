@@ -1,11 +1,3 @@
-/*
- * Copyright (c) 1998-2014 ChemAxon Ltd. All Rights Reserved.
- *
- * This software is the confidential and proprietary information of
- * ChemAxon. You shall not disclose such Confidential Information
- * and shall use it only in accordance with the terms of the agreements
- * you entered into with ChemAxon.
- */
 package cz.flih.database.generator;
 
 import com.google.common.collect.ImmutableMap;
@@ -47,7 +39,7 @@ public class MainWriteTest {
     @Test
     public void testGenerator() throws Exception {
         Map<TableName, Integer> tableSizes = ImmutableMap.of(TableName.parse("SINGLE"), 20,
-                                                             TableName.parse("MASTER"), 50);
+                                                             TableName.parse("MAIN"), 50);
 
         Generator gen = new Generator(conn, new MetaData(conn.getMetaData()), new DbStatistics(tableSizes));
         gen.start();

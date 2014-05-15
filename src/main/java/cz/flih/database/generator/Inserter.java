@@ -1,15 +1,13 @@
-/*
- * Copyright (c) 1998-2014 ChemAxon Ltd. All Rights Reserved.
- *
- * This software is the confidential and proprietary information of
- * ChemAxon. You shall not disclose such Confidential Information
- * and shall use it only in accordance with the terms of the agreements
- * you entered into with ChemAxon.
- */
 package cz.flih.database.generator;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Joiner;
+import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import cz.flih.database.generator.artifacts.Column;
+import cz.flih.database.generator.random.SqlNull;
+import cz.flih.database.generator.random.ValueGeneratorRegistry;
 import cz.flih.database.generator.ref.ColumnName;
 import cz.flih.database.generator.ref.TableName;
 import java.sql.Connection;
@@ -19,13 +17,20 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.MessageFormat;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.IntStream;
+import org.jooq.DSLContext;
 import org.jooq.Field;
 import org.jooq.InsertReturningStep;
 import org.jooq.InsertSetStep;
+import org.jooq.InsertValuesStepN;
 import org.jooq.Record;
+import org.jooq.RenderContext;
 import org.jooq.conf.ParamType;
 import org.jooq.impl.DSL;
 
@@ -35,34 +40,55 @@ import org.jooq.impl.DSL;
  */
 public class Inserter implements AutoCloseable {
 
+    private static final Logger LOG = Logger.getLogger(Inserter.class.getName());
+
     private final PreparedStatement stmt;
     private final Map<ColumnName, Integer> columnIndices;
     private final TableName table;
+    private final String query;
 
     public Inserter(Connection conn, TableName table, Set<Column> cols) throws SQLException {
         ImmutableMap.Builder<ColumnName, Integer> indicesBuilder = ImmutableMap.<ColumnName, Integer>builder();
-        String query = buildQuery(conn, table, cols, indicesBuilder);
+        query = buildQuery(conn, table, cols, indicesBuilder);
 
         this.table = table;
+
+        LOG.log(Level.INFO, "Inserter statement: {0}", query);
         stmt = conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
         columnIndices = indicesBuilder.build();
+    }
+
+    @VisibleForTesting
+    String getQuery() {
+        return query;
     }
 
     private String buildQuery(Connection conn,
             TableName table,
             Set<Column> cols,
             ImmutableMap.Builder<ColumnName, Integer> indicesBuilder) {
-
-        int indexInPS = 1; // SQL indices start with 1
-        InsertSetStep<Record> initialQuery = DSL.using(conn).insertInto(table.toJooq());
-        InsertReturningStep<Record> query2 = initialQuery.defaultValues();
-        Iterator<Column> it = cols.iterator();
-        while (it.hasNext()) {
-            Column col = it.next();
-            indicesBuilder.put(col.getName(), indexInPS);
-            query2 = setToQuery(initialQuery, col.getName().toJooq(), null);
+        DSLContext context = DSL.using(conn);
+        if (cols.isEmpty()) {
+            return context.insertInto(table.toJooq()).defaultValues().getSQL();
+        } else {
+            RenderContext rc = context.renderContext();
+            rc.sql("INSERT INTO ");
+            rc.visit(table.toJooq());
+            rc.sql("(");
+            int i = 1;
+            for (Column col : cols) {
+                indicesBuilder.put(col.getName(), i);
+                rc.visit(col.getName().toJooq());
+                if (i != cols.size()) {
+                    rc.sql(", ");
+                }
+                i++;
+            }
+            rc.sql(") VALUES (");
+            rc.sql(Joiner.on(", ").join(Iterables.limit(Iterables.cycle("?"), cols.size())));
+            rc.sql(")");
+            return rc.render();
         }
-        return query2.getSQL(ParamType.INDEXED);
     }
 
     // To help compiler resolve the ambiguity introduced by null value.
@@ -77,7 +103,12 @@ public class Inserter implements AutoCloseable {
             if (index == null) {
                 throw new IllegalArgumentException(entry.getKey() + " not present in the initial set of columns.");
             }
-            stmt.setObject(index, entry.getValue());
+            if (entry.getValue() == SqlNull.INSTANCE) {
+                stmt.setObject(index, null);
+            } else {
+                stmt.setObject(index, entry.getValue());
+            }
+            LOG.log(Level.INFO, "Setting {0} at {1} to {2}", new Object[]{entry.getKey(), index, entry.getValue()});
         }
 
         stmt.executeUpdate();
@@ -96,12 +127,15 @@ public class Inserter implements AutoCloseable {
         rs.next();
         ResultSetMetaData md = rs.getMetaData();
         for (int i = 1; i <= md.getColumnCount(); i++) {
-            assert new TableName(md.getTableName(i)).equals(table) : MessageFormat
+            assert "".equals(md.getTableName(i)) ||new TableName(md.getTableName(i)).equals(table) : MessageFormat
                     .format("Generated keys should be part of "
                             + "the table where the insert was performed ({0}), was {1}.",
                             table, md.getTableName(i));
             ColumnName col = new ColumnName(table, md.getColumnName(i));
-            builder.put(col, rs.getObject(i));
+            Object val = rs.getObject(i);
+            if (val != null) {
+                builder.put(col, val);
+            }
         }
         assert !rs.next() : "One row expected";
         return builder.build();

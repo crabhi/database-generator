@@ -76,7 +76,8 @@ public class Generator {
                 generated = inserter.insert(row);
             } catch (SQLException ex) {
                 LOG.log(Level.WARNING,
-                        MessageFormat.format("Can't insert to {0}, row: {1}", table, row), ex);
+                        MessageFormat.format("Can''t insert to {0}", table), ex);
+                LOG.fine(row.toString());
                 if (errCount > MAX_INSERT_ERRORS) {
                     LOG.log(Level.SEVERE, "Too many errors on one row for {0}, giving up.", table);
                     return;

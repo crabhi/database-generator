@@ -1,16 +1,11 @@
-/*
- * Copyright (c) 1998-2014 ChemAxon Ltd. All Rights Reserved.
- *
- * This software is the confidential and proprietary information of
- * ChemAxon. You shall not disclose such Confidential Information
- * and shall use it only in accordance with the terms of the agreements
- * you entered into with ChemAxon.
- */
 package cz.flih.database.generator.random;
 
 import cz.flih.database.generator.artifacts.Column;
+import java.sql.DatabaseMetaData;
 import java.sql.Types;
 import java.text.MessageFormat;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -18,6 +13,7 @@ import java.text.MessageFormat;
  */
 public class ValueGeneratorRegistry {
 
+    private static final Logger LOG = Logger.getLogger(ValueGeneratorRegistry.class.getName());
     private static final ValueGeneratorRegistry INSTANCE = new ValueGeneratorRegistry();
 
     public static ValueGeneratorRegistry getInstance() {
@@ -35,15 +31,34 @@ public class ValueGeneratorRegistry {
             case Types.SMALLINT:
             case Types.TINYINT:
             case Types.BIT:
-                return new IntGenerator(col.getSize());
+                return new IntGenerator(col.getSize() - col.getScale());
             case Types.DECIMAL:
             case Types.NUMERIC:
                 if (col.getScale() == 0) {
                     return new IntGenerator(col.getSize());
                 }
+                // intentional fallthrough
+            case Types.FLOAT:
+            case Types.DOUBLE:
+                return new RealGenerator(col.getSize(), col.getScale());
+            case Types.CHAR:
+            case Types.VARCHAR:
+            case Types.CLOB:
+            case Types.NVARCHAR:
+            case Types.LONGNVARCHAR:
+            case Types.LONGVARCHAR:
+            case Types.NCHAR:
+            case Types.NCLOB:
+                return new TextGenerator(col.getSize());
             default:
+                if (col.getNullable() != DatabaseMetaData.columnNoNulls) {
+                    LOG.log(Level.WARNING, "SQL type {0} not supported, using NULL generator for {1}",
+                            new Object[]{col.getJdbcType(), col.getName()});
+                    return new NullGenerator();
+                }
                 throw new UnsupportedOperationException(
-                        MessageFormat.format("SQL type {0} not supported", col.getJdbcType()));
+                        MessageFormat.format("SQL type {0} not supported (column {1})",
+                                col.getJdbcType(), col.getName()));
         }
     }
 

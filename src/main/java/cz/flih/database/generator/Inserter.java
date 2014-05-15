@@ -45,22 +45,16 @@ public class Inserter implements AutoCloseable {
     private final PreparedStatement stmt;
     private final Map<ColumnName, Integer> columnIndices;
     private final TableName table;
-    private final String query;
 
     public Inserter(Connection conn, TableName table, Set<Column> cols) throws SQLException {
         ImmutableMap.Builder<ColumnName, Integer> indicesBuilder = ImmutableMap.<ColumnName, Integer>builder();
-        query = buildQuery(conn, table, cols, indicesBuilder);
+        String query = buildQuery(conn, table, cols, indicesBuilder);
 
         this.table = table;
 
         LOG.log(Level.INFO, "Inserter statement: {0}", query);
         stmt = conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
         columnIndices = indicesBuilder.build();
-    }
-
-    @VisibleForTesting
-    String getQuery() {
-        return query;
     }
 
     private String buildQuery(Connection conn,

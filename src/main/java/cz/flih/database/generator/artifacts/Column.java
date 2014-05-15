@@ -14,13 +14,30 @@ import cz.flih.database.generator.ref.ColumnName;
 public class Column {
 
     private final ColumnName name;
+    private final int jdbcType;
+    private final int size;
+    private final int scale;
 
-    public Column(ColumnName name) {
+    public Column(ColumnName name, int jdbcType, int size, int scale) {
         this.name = name;
+        this.jdbcType = jdbcType;
+        this.size = size;
+        this.scale = scale;
     }
 
     public ColumnName getName() {
         return name;
     }
 
+    public int getJdbcType() {
+        return jdbcType;
+    }
+
+    public int getSize() {
+        return size;
+    }
+
+    public int getScale() {
+        return scale;
+    }
 }

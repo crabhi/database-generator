@@ -5,7 +5,8 @@
  */
 package cz.flih.database.generator.random;
 
-import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import cz.flih.database.generator.artifacts.Column;
 import cz.flih.database.generator.ref.ColumnName;
 import java.util.Map;
@@ -17,14 +18,21 @@ import java.util.Set;
  */
 public class RowGenerator {
 
-    private final Set<Column> columns;
+    private final Map<ColumnName, ValueGenerator<?>> generators;
 
     public RowGenerator(Set<Column> columns) {
-        this.columns = ImmutableSet.copyOf(columns);
+        ImmutableMap.Builder<ColumnName, ValueGenerator<?>> builder = ImmutableMap.builder();
+        for (Column column : columns) {
+            builder.put(column.getName(), ValueGeneratorRegistry.getInstance().createGenerator(column));
+        }
+        generators = builder.build();
     }
 
     public Map<ColumnName, Object> generateRow() {
-        throw new UnsupportedOperationException("Not supported");
+        Map<ColumnName, Object> lazyView = Maps.transformEntries(generators, (col, generator) -> {
+            return generator.nextValue();
+        });
+        return ImmutableMap.copyOf(lazyView);
     }
 
 }

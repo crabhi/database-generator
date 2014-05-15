@@ -114,7 +114,10 @@ class MetaData {
             TableName tableName = new TableName(rs.getString("TABLE_NAME"));
             assert table.equals(tableName);
             ColumnName colName = new ColumnName(tableName, rs.getString("COLUMN_NAME"));
-            return new Column(colName);
+            int jdbcType = rs.getInt("SQL_DATA_TYPE");
+            int size = rs.getInt("COLUMN_SIZE");
+            int scale = rs.getInt("DECIMAL_DIGITS");
+            return new Column(colName, jdbcType, size, scale);
         });
     }
 

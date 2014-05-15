@@ -1,13 +1,10 @@
 package cz.flih.database.generator;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
-import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import cz.flih.database.generator.artifacts.Column;
 import cz.flih.database.generator.random.SqlNull;
-import cz.flih.database.generator.random.ValueGeneratorRegistry;
 import cz.flih.database.generator.ref.ColumnName;
 import cz.flih.database.generator.ref.TableName;
 import java.sql.Connection;
@@ -17,21 +14,12 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.MessageFormat;
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.IntStream;
 import org.jooq.DSLContext;
-import org.jooq.Field;
-import org.jooq.InsertReturningStep;
-import org.jooq.InsertSetStep;
-import org.jooq.InsertValuesStepN;
-import org.jooq.Record;
 import org.jooq.RenderContext;
-import org.jooq.conf.ParamType;
 import org.jooq.impl.DSL;
 
 /**
@@ -85,11 +73,6 @@ public class Inserter implements AutoCloseable {
         }
     }
 
-    // To help compiler resolve the ambiguity introduced by null value.
-    private <T> InsertReturningStep<Record> setToQuery(InsertSetStep<Record> query, Field<T> field, T val) {
-        return query.set(field, val);
-    }
-
     public Map<ColumnName, Object> insert(Map<ColumnName, Object> row) throws SQLException {
         stmt.clearParameters();
         for (Map.Entry<ColumnName, Object> entry : row.entrySet()) {
@@ -102,7 +85,7 @@ public class Inserter implements AutoCloseable {
             } else {
                 stmt.setObject(index, entry.getValue());
             }
-            LOG.log(Level.INFO, "Setting {0} at {1} to {2}", new Object[]{entry.getKey(), index, entry.getValue()});
+            LOG.log(Level.FINER, "Setting {0} at {1} to {2}", new Object[]{entry.getKey(), index, entry.getValue()});
         }
 
         stmt.executeUpdate();

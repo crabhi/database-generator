@@ -24,8 +24,9 @@ public class Column {
     private final int size;
     private final int scale;
     private final int nullable;
+    private final boolean unique;
 
-    public Column(ColumnName name, int jdbcType, int size, int scale, int nullable) {
+    public Column(ColumnName name, int jdbcType, int size, int scale, int nullable, boolean unique) {
         this.name = name;
         this.jdbcType = jdbcType;
         this.size = size;
@@ -34,6 +35,7 @@ public class Column {
         Preconditions.checkArgument(NULLABLE_OPTIONS
                 .contains(nullable));
         this.nullable = nullable;
+        this.unique = unique;
     }
 
     public ColumnName getName() {
@@ -50,6 +52,10 @@ public class Column {
 
     public int getScale() {
         return scale;
+    }
+
+    public boolean isUnique() {
+        return unique;
     }
 
     /**

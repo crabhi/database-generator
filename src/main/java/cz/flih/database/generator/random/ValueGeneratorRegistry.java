@@ -31,7 +31,11 @@ public class ValueGeneratorRegistry {
             case Types.SMALLINT:
             case Types.TINYINT:
             case Types.BIT:
-                return new IntGenerator(col.getSize() - col.getScale());
+                if (col.isUnique()) {
+                    return new UniqueIntGenerator(col.getSize() - col.getScale());
+                } else {
+                    return new IntGenerator(col.getSize() - col.getScale());
+                }
             case Types.DECIMAL:
             case Types.NUMERIC:
                 if (col.getScale() == 0) {

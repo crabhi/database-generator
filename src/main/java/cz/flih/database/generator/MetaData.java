@@ -1,11 +1,13 @@
 package cz.flih.database.generator;
 
+import com.google.common.base.Preconditions;
 import cz.flih.database.generator.ref.ColumnName;
 import cz.flih.database.generator.ref.TableName;
 import cz.flih.database.generator.artifacts.ForeignKey;
 import cz.flih.database.generator.artifacts.Column;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -108,17 +110,43 @@ class MetaData {
     }
 
     Set<Column> getColumns(final TableName table) {
+        Set<String> uniqueIndices = findInfo((md) -> {
+            return md.getIndexInfo(null, null, table.getTable(), true, true);
+        }, (rs) -> {
+            if (rs.getInt("ORDINAL_POSITION") > 1) {
+                throw new RuntimeException(
+                        format("Unsupported multiple column keys (in table {0})", table));
+            }
+
+            assert !rs.getBoolean("NON_UNIQUE") : "Was supposed to get only unique indexes";
+
+            return rs.getString("COLUMN_NAME");
+        });
+
+        Set<String> pkCols = findInfo((md) -> {
+            return md.getPrimaryKeys(null, null, table.getTable());
+        }, (rs) -> {
+            if (rs.getInt("KEY_SEQ") > 1) {
+                throw new RuntimeException(
+                        format("Unsupported multiple primary keys (in table {0})", table));
+            }
+            return Preconditions.checkNotNull(rs.getString("COLUMN_NAME"));
+        });
+
+        final Set<String> uniqueCols = Sets.union(uniqueIndices, pkCols);
+
         return findInfo((md) -> {
             return metaData.getColumns(null, null, table.getTable(), null);
         }, (rs) -> {
             TableName tableName = new TableName(rs.getString("TABLE_NAME"));
             assert table.equals(tableName);
-            ColumnName colName = new ColumnName(tableName, rs.getString("COLUMN_NAME"));
+            String colNameStr = rs.getString("COLUMN_NAME");
+            ColumnName colName = new ColumnName(tableName, colNameStr);
             int jdbcType = rs.getInt("DATA_TYPE");
             int size = rs.getInt("COLUMN_SIZE");
             int scale = rs.getInt("DECIMAL_DIGITS");
             int nullable = rs.getInt("NULLABLE");
-            return new Column(colName, jdbcType, size, scale, nullable);
+            return new Column(colName, jdbcType, size, scale, nullable, uniqueCols.contains(colNameStr));
         });
     }
 
